@@ -33,7 +33,7 @@ install_macos() {
   pyenv global 3.12
 
   echo "⚙️  Setting up VS Code CLI..."
-  sudo ln -sf "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" /usr/local/bin/code
+  sudo ln -sf "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" "$(brew --prefix)/bin/code"
 }
 
 # ── Linux setup ──────────────────────────────────────────────────────────────
@@ -69,7 +69,7 @@ install_linux() {
 # ── Common setup (both platforms) ────────────────────────────────────────────
 install_common() {
   echo "🌿 Installing wt (git worktree helper)..."
-  sudo install -m 755 "$DOTFILES_DIR/worktree/wt" /usr/local/bin/wt
+  sudo install -m 755 "$DOTFILES_DIR/worktree/wt" "$(brew --prefix)/bin/wt"
 
   echo "🔗 Symlinking dotfiles with stow..."
   cd "$DOTFILES_DIR"
