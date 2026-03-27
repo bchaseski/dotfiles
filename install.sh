@@ -4,6 +4,135 @@ set -e
 DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OS="$(uname -s)"
 
+INSTALL_BREW=true
+INSTALL_BREW_INSTALL=true
+INSTALL_BREWFILE=true
+INSTALL_CLAUDE=true
+INSTALL_NODE=true
+INSTALL_PYENV=true
+INSTALL_VSCODE_CLI=true
+INSTALL_COMMON=true
+INSTALL_ZSCALER=false
+
+usage() {
+  cat <<EOF
+Usage: $0 [options]
+
+Options:
+  --help, -h            Show this help message
+  --skip-brew           Skip installing Homebrew and Brewfile
+  --skip-brew-install   Skip Homebrew installer only
+  --skip-brewfile       Skip Brewfile package install only
+  --skip-claude         Skip installing Claude Code
+  --skip-node           Skip fnm / Node install
+  --skip-pyenv          Skip pyenv / Python install
+  --skip-vscode-cli     Skip VS Code CLI symlink
+  --no-common           Skip common setup (wt install + stow)
+  --zscaler             Install Zscaler certs via zscaler/setup-zscaler-certs.sh
+EOF
+}
+
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --help|-h)
+        usage
+        exit 0
+        ;;
+      --skip-brew)
+        INSTALL_BREW=false
+        INSTALL_BREW_INSTALL=false
+        INSTALL_BREWFILE=false
+        ;;
+      --skip-brew-install)
+        INSTALL_BREW_INSTALL=false
+        ;;
+      --skip-brewfile)
+        INSTALL_BREWFILE=false
+        ;;
+      --skip-claude)
+        INSTALL_CLAUDE=false
+        ;;
+      --skip-node)
+        INSTALL_NODE=false
+        INSTALL_PYENV=false
+        ;;
+      --skip-pyenv)
+        INSTALL_PYENV=false
+        ;;
+      --skip-vscode-cli)
+        INSTALL_VSCODE_CLI=false
+        ;;
+      --no-common)
+        INSTALL_COMMON=false
+        ;;
+      --zscaler|--install-zscaler)
+        INSTALL_ZSCALER=true
+        ;;
+      *)
+        echo "Unknown option: $1"
+        usage
+        exit 1
+        ;;
+    esac
+    shift
+  done
+}
+
+install_claude_settings() {
+  local src="${DOTFILES_DIR}/claude/settings.json"
+  local dst="$HOME/.claude/settings.json"
+
+  if [[ ! -f "$src" ]]; then
+    echo "⚠️  Repo Claude settings file not found: $src"
+    return
+  fi
+
+  echo "🔐 Installing Claude permissions to $dst..."
+  mkdir -p "$(dirname "$dst")"
+
+  if command -v python3 &>/dev/null; then
+    python3 <<PY
+import json, os
+src = "$src"
+dst = "$dst"
+with open(src, 'r') as f:
+    src_data = json.load(f)
+dst_data = {}
+if os.path.exists(dst):
+    try:
+        with open(dst, 'r') as f:
+            dst_data = json.load(f)
+    except Exception:
+        dst_data = {}
+
+def merge(a, b):
+    if isinstance(a, dict) and isinstance(b, dict):
+        out = dict(a)
+        for k, v in b.items():
+            out[k] = merge(out[k], v) if k in out else v
+        return out
+    if isinstance(a, list) and isinstance(b, list):
+        merged = list(a)
+        for item in b:
+            if item not in merged:
+                merged.append(item)
+        return merged
+    return b
+
+merged = merge(dst_data, src_data)
+with open(dst, 'w') as f:
+    json.dump(merged, f, indent=2)
+PY
+  else
+    cp "$src" "$dst"
+  fi
+
+  echo "    ✅ Done"
+}
+
+parse_args "$@"
+
 # Prompt for sudo once and keep the timestamp alive for the duration of the script
 sudo -v
 while true; do sudo -n true; sleep 240; kill -0 $$ 2>/dev/null || exit; done &
@@ -11,29 +140,68 @@ _SUDO_PID=$!
 
 # ── macOS setup ──────────────────────────────────────────────────────────────
 install_macos() {
-  echo "🍺 Installing Homebrew..."
-  if ! command -v brew &>/dev/null; then
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  if [[ "$INSTALL_BREW_INSTALL" == true ]]; then
+    echo "🍺 Installing Homebrew..."
+    if ! command -v brew &>/dev/null; then
+      /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    fi
+  else
+    echo "⏭️  Skipping Homebrew installer."
   fi
-  eval "$(/opt/homebrew/bin/brew shellenv)"
 
-  echo "📦 Installing packages from Brewfile..."
-  brew bundle install --file="$DOTFILES_DIR/Brewfile" || echo "⚠️  brew bundle had errors — some packages may be missing. Continuing..."
+  if command -v brew &>/dev/null; then
+    eval "$(brew shellenv)"
+  fi
 
-  echo "🤖 Installing Claude Code (native installer — auto-updates)..."
-  curl -fsSL https://claude.ai/install.sh | bash
+  if [[ "$INSTALL_BREWFILE" == true ]]; then
+    echo "📦 Installing packages from Brewfile..."
+    if command -v brew &>/dev/null; then
+      brew bundle install --file="$DOTFILES_DIR/Brewfile" || echo "⚠️  brew bundle had errors — some packages may be missing. Continuing..."
+    else
+      echo "⚠️  brew not found; cannot install Brewfile packages."
+    fi
+  else
+    echo "⏭️  Skipping Brewfile package install."
+  fi
 
-  echo "🟢 Installing Node.js via fnm..."
-  eval "$(fnm env)"
-  fnm install --lts
-  fnm default lts-latest
+  if [[ "$INSTALL_CLAUDE" == true ]]; then
+    echo "🤖 Installing Claude Code (native installer — auto-updates)..."
+    curl -fsSL https://claude.ai/install.sh | bash
+  else
+    echo "⏭️  Skipping Claude Code install."
+  fi
 
-  echo "🐍 Setting up Python via pyenv..."
-  pyenv install 3.12 --skip-existing
-  pyenv global 3.12
+  if [[ "$INSTALL_NODE" == true ]]; then
+    echo "🟢 Installing Node.js via fnm..."
+    if command -v fnm &>/dev/null; then
+      eval "$(fnm env)"
+      fnm install --lts
+      fnm default lts-latest
+    else
+      echo "⚠️  fnm not found; skipping Node install."
+    fi
+  else
+    echo "⏭️  Skipping Node.js install."
+  fi
 
-  echo "⚙️  Setting up VS Code CLI..."
-  sudo ln -sf "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" "$(brew --prefix)/bin/code"
+  if [[ "$INSTALL_PYENV" == true ]]; then
+    echo "🐍 Setting up Python via pyenv..."
+    if command -v pyenv &>/dev/null; then
+      pyenv install 3.12 --skip-existing
+      pyenv global 3.12
+    else
+      echo "⚠️  pyenv not found; skipping Python setup."
+    fi
+  else
+    echo "⏭️  Skipping pyenv / Python setup."
+  fi
+
+  if [[ "$INSTALL_VSCODE_CLI" == true ]]; then
+    echo "⚙️  Setting up VS Code CLI..."
+    sudo ln -sf "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" /usr/local/bin/code
+  else
+    echo "⏭️  Skipping VS Code CLI setup."
+  fi
 }
 
 # ── Linux setup ──────────────────────────────────────────────────────────────
@@ -79,6 +247,10 @@ install_common() {
   else
     stow shell bash git ssh
   fi
+
+  if [[ "$INSTALL_CLAUDE" == true ]]; then
+    install_claude_settings
+  fi
 }
 
 # ── Main ─────────────────────────────────────────────────────────────────────
@@ -92,7 +264,18 @@ else
   exit 1
 fi
 
-install_common
+if [[ "$INSTALL_COMMON" == true ]]; then
+  install_common
+else
+  echo "⏭️  Skipping common setup."
+fi
+
+if [[ "$INSTALL_ZSCALER" == true ]]; then
+  echo "🔐 Running Zscaler certificate setup..."
+  bash "$DOTFILES_DIR/zscaler/setup-zscaler-certs.sh"
+else
+  echo "⏭️  Skipping Zscaler setup (use --zscaler to enable)."
+fi
 
 kill $_SUDO_PID 2>/dev/null
 echo "✅ Done! Restart your terminal."
