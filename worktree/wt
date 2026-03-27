@@ -1,0 +1,586 @@
+#!/usr/bin/env bash
+# wt — multi-repo Git worktree helper
+#
+# Per-repo default base branch:
+#   Create a `.wtconfig` file at the repo root with:
+#     default-base = origin/stg
+#
+# Resolution order:
+#   1) .wtconfig
+#   2) origin/HEAD
+#   3) origin/dev
+#   4) origin/stg
+#   5) origin/main
+#   6) origin/master
+#
+# Usage:
+#   wt feature|feat <slug>   [--base <ref>]
+#   wt hotfix <id>           [--base <ref>]
+#   wt track <branch>
+#   wt pr <number>
+#   wt scratch <name>        [--base <ref>]
+#   wt list
+#   wt status
+#   wt remove <suffix>
+#   wt prune
+#   wt open <suffix>
+#   wt switch <suffix>
+#   wt cleanup-merged        [--base <ref>] [--dry-run]
+#   wt default-base
+#   wt base
+#   wt help
+#
+# Global flags:
+#   --repo <path>   explicit base repo
+#   --root <path>   explicit root dir for sibling worktrees
+#
+set -euo pipefail
+
+die() { echo "Error: $*" >&2; exit 1; }
+have() { command -v "$1" >/dev/null 2>&1; }
+
+sanitize() {
+  local s="$1"
+  s="${s//\//-}"
+  s="${s// /-}"
+  echo "$s"
+}
+
+usage() {
+  cat <<'EOF'
+wt — Git worktree helper
+
+Commands:
+  wt feature|feat <slug> [--base <ref>]
+  wt hotfix <id> [--base <ref>]
+  wt track <branch>
+  wt pr <number>
+  wt scratch <name> [--base <ref>]
+  wt list
+  wt status
+  wt remove <suffix>
+  wt prune
+  wt open <suffix>
+  wt switch <suffix>
+  wt cleanup-merged [--base <ref>] [--dry-run]
+  wt default-base
+  wt base
+  wt help
+
+Examples:
+  wt feat api-cleanup
+  wt hotfix 123 --base release/v1.14
+  wt track bc-integration-testing
+  wt pr 456
+  wt scratch spike-cache
+  wt status
+  wt switch feat-api-cleanup
+  wt cleanup-merged --dry-run
+EOF
+}
+
+BASE_REPO=""
+TARGET_ROOT=""
+POSITIONAL=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --repo)
+      [[ $# -ge 2 ]] || die "--repo requires a path"
+      BASE_REPO="$2"
+      shift 2
+      ;;
+    --root)
+      [[ $# -ge 2 ]] || die "--root requires a path"
+      TARGET_ROOT="$2"
+      shift 2
+      ;;
+    help|--help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      POSITIONAL+=("$1")
+      shift
+      ;;
+  esac
+done
+
+set -- "${POSITIONAL[@]:-}"
+
+detect_base_repo() {
+  if [[ -n "${BASE_REPO:-}" ]]; then
+    [[ -d "$BASE_REPO" ]] || die "--repo path not found: $BASE_REPO"
+    [[ -d "$BASE_REPO/.git" || -f "$BASE_REPO/.git" ]] || die "--repo must point to a git working directory: $BASE_REPO"
+    echo "$BASE_REPO"
+    return
+  fi
+
+  if have git; then
+    local base
+    if base="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+      echo "$base"
+      return
+    fi
+  fi
+
+  die "Not inside a git repo and no --repo provided."
+}
+
+BASE_DIR="$(detect_base_repo)"
+REPO_NAME="$(basename "$BASE_DIR")"
+PARENT_DIR="$(cd "$BASE_DIR/.."; pwd)"
+ROOT_DIR="${TARGET_ROOT:-$PARENT_DIR}"
+
+ensure_git() {
+  [[ -d "$BASE_DIR" ]] || die "Base repo not found: $BASE_DIR"
+  [[ -d "$BASE_DIR/.git" || -f "$BASE_DIR/.git" ]] || die "Not a git repo: $BASE_DIR"
+}
+
+ensure_root() {
+  [[ -d "$ROOT_DIR" ]] || die "Target root not found: $ROOT_DIR"
+}
+
+git_main() {
+  (cd "$BASE_DIR" && "$@")
+}
+
+worktree_path() {
+  echo "$ROOT_DIR/${REPO_NAME}__${1}"
+}
+
+ref_exists() {
+  local ref="$1"
+  git_main git rev-parse --verify --quiet "$ref" >/dev/null 2>&1
+}
+
+local_branch_exists() {
+  local br="$1"
+  git_main git show-ref --verify --quiet "refs/heads/$br"
+}
+
+remote_branch_exists() {
+  local br="$1"
+  git_main git show-ref --verify --quiet "refs/remotes/origin/$br"
+}
+
+symlink_claude_config() {
+  local wt_path="$1"
+  if [[ -e "$BASE_DIR/.claude" && ! -e "$wt_path/.claude" ]]; then
+    ln -s "$BASE_DIR/.claude" "$wt_path/.claude"
+    echo "  Symlinked .claude config from base repo"
+  fi
+}
+
+resolve_default_base() {
+  local cfg="$BASE_DIR/.wtconfig"
+
+  if [[ -f "$cfg" ]]; then
+    local line val
+    line="$(grep -E '^\s*(default-base|default_base)\s*=' "$cfg" || true)"
+    if [[ -n "$line" ]]; then
+      val="$(echo "$line" | sed -E 's/^\s*(default-base|default_base)\s*=\s*//; s/\r$//')"
+      if [[ -n "$val" ]] && ref_exists "$val"; then
+        echo "$val"
+        return
+      fi
+    fi
+  fi
+
+  local ref
+  ref="$(git_main git symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null || true)"
+  if [[ -n "$ref" ]] && ref_exists "$ref"; then
+    echo "$ref"
+    return
+  fi
+
+  for candidate in origin/dev origin/stg origin/main origin/master; do
+    if ref_exists "$candidate"; then
+      echo "$candidate"
+      return
+    fi
+  done
+
+  echo "origin/main"
+}
+
+cmd_default_base() {
+  ensure_git
+  echo "$(resolve_default_base)"
+}
+
+cmd_base() {
+  echo "$BASE_DIR"
+}
+
+cmd_list() {
+  ensure_git
+  git_main git worktree list
+}
+
+cmd_prune() {
+  ensure_git
+  git_main git worktree prune
+  echo "Pruned stale worktrees for $REPO_NAME"
+}
+
+cmd_feature() {
+  local slug="${1:-}"
+  shift || true
+  [[ -n "$slug" ]] || die "Usage: wt feature <slug> [--base <ref>]"
+
+  local base
+  base="$(resolve_default_base)"
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --base)
+        [[ $# -ge 2 ]] || die "--base requires a ref"
+        base="$2"
+        shift 2
+        ;;
+      *)
+        die "Unknown flag for feature: $1"
+        ;;
+    esac
+  done
+
+  ensure_git
+  ensure_root
+  git_main git fetch --all --prune
+
+  local branch="feat/$slug"
+  local suf
+  suf="$(sanitize "feat-$slug")"
+  local path
+  path="$(worktree_path "$suf")"
+
+  git_main git worktree add "$path" -b "$branch" "$base"
+  symlink_claude_config "$path"
+  echo "Created: $path (branch: $branch, base: $base)"
+}
+
+cmd_hotfix() {
+  local id="${1:-}"
+  shift || true
+  [[ -n "$id" ]] || die "Usage: wt hotfix <id> [--base <ref>]"
+
+  local base="release/v1"
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --base)
+        [[ $# -ge 2 ]] || die "--base requires a ref"
+        base="$2"
+        shift 2
+        ;;
+      *)
+        die "Unknown flag for hotfix: $1"
+        ;;
+    esac
+  done
+
+  ensure_git
+  ensure_root
+  git_main git fetch --all --prune
+
+  local branch="hotfix/$id"
+  local suf
+  suf="$(sanitize "hotfix-$id")"
+  local path
+  path="$(worktree_path "$suf")"
+
+  git_main git worktree add "$path" -b "$branch" "$base"
+  symlink_claude_config "$path"
+  echo "Created: $path (branch: $branch, base: $base)"
+}
+
+cmd_track() {
+  local branch="${1:-}"
+  [[ -n "$branch" ]] || die "Usage: wt track <branch>"
+
+  ensure_git
+  ensure_root
+
+  git_main git fetch --all --prune
+  git_main git fetch origin "$branch" >/dev/null 2>&1 || true
+
+  local suf
+  suf="$(sanitize "$branch")"
+  local path
+  path="$(worktree_path "$suf")"
+
+  if [[ -d "$path" ]]; then
+    die "Worktree path already exists: $path"
+  fi
+
+  if remote_branch_exists "$branch"; then
+    if local_branch_exists "$branch"; then
+      git_main git worktree add "$path" "$branch"
+    else
+      git_main git worktree add "$path" --track -b "$branch" "origin/$branch"
+    fi
+    symlink_claude_config "$path"
+    echo "Tracked remote branch in worktree: $path (branch: $branch)"
+    return
+  fi
+
+  if local_branch_exists "$branch"; then
+    git_main git worktree add "$path" "$branch"
+    symlink_claude_config "$path"
+    echo "Tracked local branch in worktree: $path (branch: $branch)"
+    return
+  fi
+
+  die "Branch not found locally or on origin: $branch"
+}
+
+cmd_pr() {
+  local pr="${1:-}"
+  [[ -n "$pr" ]] || die "Usage: wt pr <number>"
+
+  ensure_git
+  ensure_root
+
+  local suf
+  suf="$(sanitize "pr-$pr")"
+  local path
+  path="$(worktree_path "$suf")"
+
+  git_main git fetch origin "pull/$pr/head:pr/$pr"
+  git_main git worktree add "$path" "pr/$pr"
+  symlink_claude_config "$path"
+  echo "Created: $path (branch: pr/$pr)"
+}
+
+cmd_scratch() {
+  local name="${1:-scratch}"
+  shift || true
+
+  local base
+  base="$(resolve_default_base)"
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --base)
+        [[ $# -ge 2 ]] || die "--base requires a ref"
+        base="$2"
+        shift 2
+        ;;
+      *)
+        die "Unknown flag for scratch: $1"
+        ;;
+    esac
+  done
+
+  ensure_git
+  ensure_root
+  git_main git fetch --all --prune
+
+  local branch="scratch/$name"
+  local suf
+  suf="$(sanitize "scratch-$name")"
+  local path
+  path="$(worktree_path "$suf")"
+
+  git_main git worktree add "$path" -b "$branch" "$base"
+  symlink_claude_config "$path"
+  echo "Created: $path (branch: $branch, base: $base)"
+}
+
+cmd_remove() {
+  local name="${1:-}"
+  [[ -n "$name" ]] || die "Usage: wt remove <suffix>"
+
+  ensure_git
+  ensure_root
+
+  local path
+  path="$(worktree_path "$(sanitize "$name")")"
+
+  if [[ "$(pwd)" == "$path"* ]]; then
+    die "You're inside the target worktree; cd elsewhere."
+  fi
+
+  git_main git worktree remove "$path" || {
+    echo "Normal removal failed; retrying with --force..."
+    git_main git worktree remove --force "$path" || true
+  }
+
+  [[ -d "$path" ]] && rm -rf "$path" || true
+  echo "Removed: $path"
+}
+
+cmd_open() {
+  local name="${1:-}"
+  [[ -n "$name" ]] || die "Usage: wt open <suffix>"
+
+  ensure_root
+
+  local path
+  path="$(worktree_path "$(sanitize "$name")")"
+  [[ -d "$path" ]] || die "Worktree not found: $path"
+
+  if have code; then
+    (cd "$path" && code . >/dev/null 2>&1 &)
+    echo "Opened in VS Code: $path"
+  else
+    echo "$path"
+  fi
+}
+
+cmd_switch() {
+  local name="${1:-}"
+  [[ -n "$name" ]] || die "Usage: wt switch <suffix>"
+
+  ensure_root
+
+  local path
+  path="$(worktree_path "$(sanitize "$name")")"
+  [[ -d "$path" ]] || die "Worktree not found: $path"
+
+  echo "$path"
+}
+
+_map_worktrees() {
+  git_main git worktree list --porcelain | awk '
+    $1=="worktree" { path=$2 }
+    $1=="branch"   { gsub("^refs/heads/","",$2); print $2 "\t" path }
+  '
+}
+
+cmd_status() {
+  ensure_git
+
+  local current
+  current="$(pwd)"
+
+  printf "%-8s %-30s %-45s %s\n" "ACTIVE" "SUFFIX" "BRANCH" "PATH"
+  printf "%-8s %-30s %-45s %s\n" "------" "------" "------" "----"
+
+  while IFS=$'\t' read -r br path; do
+    [[ -n "${br:-}" && -n "${path:-}" ]] || continue
+
+    local active=""
+    if [[ "$current" == "$path"* ]]; then
+      active="*"
+    fi
+
+    local suffix
+    suffix="$(basename "$path")"
+    suffix="${suffix#${REPO_NAME}__}"
+
+    printf "%-8s %-30s %-45s %s\n" "$active" "$suffix" "$br" "$path"
+  done < <(_map_worktrees)
+}
+
+cmd_cleanup_merged() {
+  local base
+  base="$(resolve_default_base)"
+  local dry_run=0
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --base)
+        [[ $# -ge 2 ]] || die "--base requires a ref"
+        base="$2"
+        shift 2
+        ;;
+      --dry-run)
+        dry_run=1
+        shift
+        ;;
+      *)
+        die "Unknown flag for cleanup-merged: $1"
+        ;;
+    esac
+  done
+
+  ensure_git
+  ensure_root
+
+  echo "Scanning for branches merged into '$base'..."
+  git_main git fetch --all --prune
+
+  local merged
+  merged="$(
+    git_main git branch --merged "$base" --format='%(refname:short)' \
+      | sed '/^\(main\|master\|develop\|dev\|stg\|stage\|staging\|release\/.*\)$/d'
+  )"
+
+  if [[ -z "$merged" ]]; then
+    echo "No merged branches found."
+    return 0
+  fi
+
+  declare -A map
+  while IFS=$'\t' read -r br path; do
+    [[ -n "${br:-}" && -n "${path:-}" ]] || continue
+    map["$br"]="$path"
+  done < <(_map_worktrees)
+
+  echo "Candidates:"
+  echo "$merged" | sed 's/^/  - /'
+
+  local patterns='^(feat/|hotfix/|pr/|scratch/)'
+
+  while IFS= read -r br; do
+    [[ "$br" =~ $patterns ]] || continue
+
+    local path="${map[$br]:-}"
+
+    if [[ -z "$path" ]]; then
+      echo "Branch '$br' merged but not in a worktree. (Skipping folder removal)"
+      [[ $dry_run -eq 1 ]] && continue
+      git_main git branch -D "$br" || true
+      continue
+    fi
+
+    local suffix
+    suffix="$(basename "$path" | sed "s/^${REPO_NAME}__//")"
+
+    echo "Merged & in worktree: $br -> $suffix ($path)"
+
+    if [[ $dry_run -eq 1 ]]; then
+      continue
+    fi
+
+    if [[ "$(pwd)" == "$path"* ]]; then
+      echo "You are inside '$path'; skipping to avoid issues."
+      continue
+    fi
+
+    git_main git worktree remove "$path" || git_main git worktree remove --force "$path" || true
+    [[ -d "$path" ]] && rm -rf "$path" || true
+    git_main git branch -D "$br" || true
+    echo "Removed worktree and deleted branch: $br"
+  done <<< "$merged"
+
+  echo "Done."
+}
+
+main() {
+  local cmd="${1:-help}"
+  shift || true
+
+  case "$cmd" in
+    feature|feat)      cmd_feature "$@";;
+    hotfix)            cmd_hotfix "$@";;
+    track)             cmd_track "$@";;
+    pr)                cmd_pr "$@";;
+    scratch)           cmd_scratch "$@";;
+    list)              cmd_list;;
+    status)            cmd_status;;
+    remove)            cmd_remove "$@";;
+    prune)             cmd_prune;;
+    open)              cmd_open "$@";;
+    switch)            cmd_switch "$@";;
+    cleanup-merged)    cmd_cleanup_merged "$@";;
+    default-base)      cmd_default_base;;
+    base)              cmd_base;;
+    help|--help|-h)    usage;;
+    *)                 die "Unknown command: $cmd. Try 'wt help'.";;
+  esac
+}
+
+main "$@"

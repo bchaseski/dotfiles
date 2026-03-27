@@ -1,0 +1,13 @@
+# Secrets — never commit these
+.env
+.env.local
+*.pem
+*.key
+
+# macOS
+.DS_Store
+
+# SSH private keys (config file is fine, keys are not)
+ssh/id_*
+ssh/*.pub
+.claude/

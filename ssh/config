@@ -1,0 +1,23 @@
+# Default settings for all hosts
+Host *
+  AddKeysToAgent yes
+  IdentityFile ~/.ssh/id_ed25519
+  ServerAliveInterval 60
+  ServerAliveCountMax 3
+
+# GitHub
+Host github.com
+  User git
+  IdentityFile ~/.ssh/id_ed25519
+
+# Example: jump host / bastion pattern
+# Host bastion
+#   HostName bastion.example.com
+#   User your-username
+#   IdentityFile ~/.ssh/id_ed25519
+
+# Example: internal server via bastion
+# Host internal-server
+#   HostName 10.0.0.5
+#   User your-username
+#   ProxyJump bastion

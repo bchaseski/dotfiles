@@ -1,0 +1,18 @@
+[user]
+    name = Your Name
+    email = you@example.com
+
+[core]
+    editor = code --wait
+    autocrlf = input
+
+[pull]
+    rebase = true
+
+[push]
+    autoSetupRemote = true
+
+[alias]
+    lg = log --oneline --graph --decorate --all
+    undo = reset HEAD~1 --mixed
+    save = stash push -m
