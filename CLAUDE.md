@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Repo Is
 
-Personal dotfiles for macOS and Linux (Ubuntu/WSL), managed with GNU Stow. Each top-level directory (`zsh/`, `bash/`, `shell/`, `git/`, `vscode/`, `ssh/`) maps to a tool's config files. Stow symlinks them into `~` so they're version-controlled without copying.
+Personal dotfiles for macOS and Linux (Ubuntu/WSL), managed with GNU Stow. Each top-level directory (`zsh/`, `bash/`, `shell/`, `git/`, `vscode/`, `ssh/`, `claude/`) maps to a tool's config files. Stow symlinks them into `~` so they're version-controlled without copying. The `claude/` directory is an exception — since `~/.claude/` contains runtime data, `install.sh` symlinks just `settings.json` rather than using stow.
 
 ## Setup
 
@@ -55,6 +55,7 @@ stow newtool
 | `git/.gitconfig` | Git identity, editor (VS Code), aliases |
 | `vscode/settings.json` | Editor preferences, formatters (Prettier, Black) |
 | `ssh/config` | SSH defaults, GitHub host, jump-host patterns |
+| `claude/.claude/settings.json` | Claude Code permissions and settings (symlinked, not stowed) |
 
 ## Customization Required
 

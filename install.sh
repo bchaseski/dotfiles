@@ -80,7 +80,7 @@ parse_args() {
 }
 
 install_claude_settings() {
-  local src="${DOTFILES_DIR}/claude/settings.json"
+  local src="${DOTFILES_DIR}/claude/.claude/settings.json"
   local dst="$HOME/.claude/settings.json"
 
   if [[ ! -f "$src" ]]; then
@@ -88,46 +88,15 @@ install_claude_settings() {
     return
   fi
 
-  echo "🔐 Installing Claude permissions to $dst..."
+  echo "🔐 Symlinking Claude settings to $dst..."
   mkdir -p "$(dirname "$dst")"
 
-  if command -v python3 &>/dev/null; then
-    python3 <<PY
-import json, os
-src = "$src"
-dst = "$dst"
-with open(src, 'r') as f:
-    src_data = json.load(f)
-dst_data = {}
-if os.path.exists(dst):
-    try:
-        with open(dst, 'r') as f:
-            dst_data = json.load(f)
-    except Exception:
-        dst_data = {}
-
-def merge(a, b):
-    if isinstance(a, dict) and isinstance(b, dict):
-        out = dict(a)
-        for k, v in b.items():
-            out[k] = merge(out[k], v) if k in out else v
-        return out
-    if isinstance(a, list) and isinstance(b, list):
-        merged = list(a)
-        for item in b:
-            if item not in merged:
-                merged.append(item)
-        return merged
-    return b
-
-merged = merge(dst_data, src_data)
-with open(dst, 'w') as f:
-    json.dump(merged, f, indent=2)
-PY
-  else
-    cp "$src" "$dst"
+  if [[ -f "$dst" && ! -L "$dst" ]]; then
+    echo "    📋 Backing up existing $dst to ${dst}.bak"
+    mv "$dst" "${dst}.bak"
   fi
 
+  ln -sf "$src" "$dst"
   echo "    ✅ Done"
 }
 

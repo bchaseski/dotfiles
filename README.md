@@ -23,7 +23,8 @@ dotfiles/
 ├── ssh/
 │   └── config          # SSH defaults, GitHub host, jump-host patterns
 ├── claude/
-│   └── settings.json   # Claude Code permissions (merged into ~/.claude/settings.json)
+│   └── .claude/
+│       └── settings.json   # Claude Code permissions (symlinked to ~/.claude/settings.json)
 ├── worktree/
 │   └── wt              # Git worktree helper script
 └── zscaler/
@@ -77,7 +78,7 @@ Flags can be combined:
 - **Brewfile packages** — VS Code, Docker, iTerm2, kubectl, terraform, awscli, helm, k9s, starship, etc.
 - **fnm** — Node version manager (installs LTS)
 - **pyenv** — Python version manager (installs 3.12)
-- **Claude Code** — native installer (auto-updates) + permissions merged from `claude/settings.json`
+- **Claude Code** — native installer (auto-updates) + settings symlinked from `claude/.claude/settings.json`
 - **VS Code CLI** — `code` symlink
 - **wt** — git worktree helper installed to `/usr/local/bin`
 - **Stow** — symlinks `shell zsh git vscode ssh`
@@ -87,7 +88,7 @@ Flags can be combined:
 - **System packages** — stow, git, curl, jq
 - **Starship** — shell prompt
 - **pyenv** — Python version manager
-- **Claude Code** — native installer + permissions
+- **Claude Code** — native installer + settings symlinked
 - **Stow** — symlinks `shell bash git ssh`
 
 ## Keeping Things Updated

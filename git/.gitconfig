@@ -1,6 +1,6 @@
 [user]
-    name = Your Name
-    email = you@example.com
+	name = Brian Chase
+	email = bchase.orders@gmail.com
 
 [core]
     editor = code --wait
@@ -16,3 +16,8 @@
     lg = log --oneline --graph --decorate --all
     undo = reset HEAD~1 --mixed
     save = stash push -m
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
