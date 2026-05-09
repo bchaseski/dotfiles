@@ -1,6 +1,7 @@
 # Secrets — never commit these
 .env
 .env.local
+*.local.sh
 *.pem
 *.key
 

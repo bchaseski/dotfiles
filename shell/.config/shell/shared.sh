@@ -86,3 +86,8 @@ getToken() {
 
 alias gst='getToken stg'
 alias gpt='getToken prd'
+
+# ---- Local machine config (not committed) ----
+if [ -f "$HOME/.config/shell/shared.local.sh" ]; then
+  . "$HOME/.config/shell/shared.local.sh"
+fi
