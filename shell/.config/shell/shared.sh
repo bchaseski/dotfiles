@@ -8,14 +8,9 @@ command -v pyenv >/dev/null && eval "$(pyenv init -)"
 # ---- Claude Code PATH ----
 export PATH="$HOME/.local/bin:$PATH"
 
-# ── Zscaler Root CA ──────────────────────────────────────────────────────────
-if [ -f "$HOME/.config/zscaler/ZscalerRootCA.crt" ]; then
-  export ZSCALER_CERT="$HOME/.config/zscaler/ZscalerRootCA.crt"
-  export NODE_EXTRA_CA_CERTS="$ZSCALER_CERT"
-  export REQUESTS_CA_BUNDLE="$ZSCALER_CERT"
-  export SSL_CERT_FILE="$ZSCALER_CERT"
-  export CURL_CA_BUNDLE="$ZSCALER_CERT"
-fi
+# ---- Zscaler / corporate CA ----
+# Machine-specific; configured in ~/.config/shell/shared.local.sh (sourced at the bottom).
+# Rebuild the combined bundle with scripts/regen-zscaler-bundle.sh on a new work laptop.
 
 # ---- Aliases: General ----
 alias ll="ls -lAh"
@@ -45,11 +40,12 @@ alias gcauth='gcloud auth login --update-adc'
 # ---- Functions: ZoomInfo Token ----
 getToken() {
   local ENV="${1:-stg}"
-  local ACCOUNT_ID="${2:-20114632}"
   local EMPLOYEE_USER="${3:-string}"
 
+  local ACCOUNT_ID
   case "$ENV" in
-    stg|prd) ;;
+    stg) ACCOUNT_ID="${2:-20114632}" ;;
+    prd) ACCOUNT_ID="${2:-30317674}" ;;
     *)
       echo "Invalid env '$ENV' (use: stg or prd)"
       return 1
@@ -82,6 +78,11 @@ getToken() {
   echo "✅ Token exported:"
   echo "   ZI_ENV=${ENV}"
   echo "   ZI_TOKEN=$TOKEN"
+
+  if command -v pbcopy >/dev/null 2>&1; then
+    printf '%s' "$TOKEN" | pbcopy
+    echo "📋 Token copied to clipboard"
+  fi
 }
 
 alias gst='getToken stg'
