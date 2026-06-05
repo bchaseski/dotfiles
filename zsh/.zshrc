@@ -1,7 +1,7 @@
 # ---- Shared config (aliases, functions, env vars) ----
 if [[ ! -f "$HOME/.config/shell/shared.sh" ]]; then
   echo "Restowing shell config..."
-  (cd "$HOME/dev/dotfiles" && stow shell)
+  (cd "$HOME/dev/personal/dotfiles" && stow --target="$HOME" shell)
 fi
 source "$HOME/.config/shell/shared.sh"
 

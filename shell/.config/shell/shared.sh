@@ -16,6 +16,14 @@ export PATH="$HOME/.local/bin:$PATH"
 alias ll="ls -lAh"
 alias la="ls -A"
 
+# ---- Navigation: project dirs ----
+# Each cd<x> jumps to a project. Paths come from env vars so machine-specific
+# locations stay out of the committed repo — set UI_DIR / MICROAPPS_DIR in
+# ~/.config/shell/shared.local.sh (gitignored, sourced at the bottom), same
+# pattern as SSL_DIR. Without those vars set, the functions print a hint.
+cdui() { cd "${UI_DIR:?set UI_DIR in ~/.config/shell/shared.local.sh}" || return; }
+cdmi() { cd "${MICROAPPS_DIR:?set MICROAPPS_DIR in ~/.config/shell/shared.local.sh}" || return; }
+
 # ---- Aliases: Git ----
 alias gs="git status"
 alias gp="git pull"
@@ -40,7 +48,8 @@ alias gcauth='gcloud auth login --update-adc'
 # ---- Functions: ZoomInfo Token ----
 getToken() {
   local ENV="${1:-stg}"
-  local EMPLOYEE_USER="${3:-string}"
+  # Default employee user is machine-specific; override via ZI_EMPLOYEE_USER in shared.local.sh.
+  local EMPLOYEE_USER="${3:-${ZI_EMPLOYEE_USER:-string}}"
 
   local ACCOUNT_ID
   case "$ENV" in
