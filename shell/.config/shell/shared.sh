@@ -29,6 +29,7 @@ alias gs="git status"
 alias gp="git pull"
 alias gc="git commit"
 alias main='git checkout main && git pull'
+alias wtr="git worktree remove"
 
 # ---- Aliases: Docker ----
 alias dps="docker ps"
