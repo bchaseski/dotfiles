@@ -23,6 +23,7 @@ alias la="ls -A"
 # pattern as SSL_DIR. Without those vars set, the functions print a hint.
 cdui() { cd "${UI_DIR:?set UI_DIR in ~/.config/shell/shared.local.sh}" || return; }
 cdmi() { cd "${MICROAPPS_DIR:?set MICROAPPS_DIR in ~/.config/shell/shared.local.sh}" || return; }
+cdwb() { cd "${WORKBOOK_DIR:?set WORKBOOK_DIR in ~/.config/shell/shared.local.sh}" || return; }
 
 # ---- Aliases: Git ----
 alias gs="git status"
