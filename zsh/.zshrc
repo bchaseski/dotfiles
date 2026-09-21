@@ -27,3 +27,10 @@ command -v fnm >/dev/null && eval "$(fnm env --use-on-cd --shell zsh)"
 
 # ---- Aliases: zsh-specific ----
 alias reload="source ~/.zshrc"
+export PATH="/opt/homebrew/opt/libpq/bin:$PATH"
+
+# >>> grok installer >>>
+export PATH="$HOME/.grok/bin:$PATH"
+fpath=(~/.grok/completions/zsh $fpath)
+autoload -Uz compinit && compinit -C
+# <<< grok installer <<<
