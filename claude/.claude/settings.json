@@ -65,7 +65,6 @@
       "mcp__plugin_playwright_playwright__browser_console_messages",
       "mcp__plugin_playwright_playwright__browser_snapshot",
       "mcp__plugin_playwright_playwright__browser_close",
-      "Bash(npm run dev:web > /tmp/web-dev.log 2>&1 & *)",
       "WebFetch(domain:raw.githubusercontent.com)"
     ],
     "additionalDirectories": [
