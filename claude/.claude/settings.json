@@ -60,7 +60,15 @@
       "Bash(vitest:*)",
       "Bash(wc:*)",
       "Bash(wget:*)",
-      "Bash(which:*)"
+      "Bash(which:*)",
+      "mcp__plugin_playwright_playwright__browser_navigate",
+      "mcp__plugin_playwright_playwright__browser_console_messages",
+      "mcp__plugin_playwright_playwright__browser_snapshot",
+      "mcp__plugin_playwright_playwright__browser_close",
+      "WebFetch(domain:raw.githubusercontent.com)"
+    ],
+    "additionalDirectories": [
+      "/tmp"
     ]
   },
   "statusLine": {
@@ -72,14 +80,24 @@
     "vercel@claude-plugins-official": false,
     "codex@openai-codex": true,
     "frontend-design@claude-plugins-official": true,
-    "superpowers@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": false,
     "context7@claude-plugins-official": true,
     "code-review@claude-plugins-official": true,
     "code-simplifier@claude-plugins-official": true,
     "skill-creator@claude-plugins-official": true,
     "github@claude-plugins-official": true,
     "playwright@claude-plugins-official": true,
-    "claude-md-management@claude-plugins-official": true
+    "claude-md-management@claude-plugins-official": true,
+    "static-analysis@trailofbits": true,
+    "typescript-lsp@claude-plugins-official": true,
+    "security-guidance@claude-plugins-official": true,
+    "commit-commands@claude-plugins-official": true,
+    "claude-code-setup@claude-plugins-official": true,
+    "pr-review-toolkit@claude-plugins-official": true,
+    "chrome-devtools-mcp@claude-plugins-official": true,
+    "core-tools@practical-claude-skills": true,
+    "git-workflow@practical-claude-skills": true,
+    "cloudflare@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
     "bitwarden-marketplace": {
@@ -99,7 +117,27 @@
         "source": "github",
         "repo": "openai/codex-plugin-cc"
       }
+    },
+    "trailofbits": {
+      "source": {
+        "source": "github",
+        "repo": "trailofbits/skills"
+      }
+    },
+    "anthropic-agent-skills": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/skills"
+      }
+    },
+    "practical-claude-skills": {
+      "source": {
+        "source": "git",
+        "url": "https://github.com/bchaseski/claude.git"
+      }
     }
   },
-  "effortLevel": "high"
+  "effortLevel": "high",
+  "tui": "fullscreen",
+  "agentPushNotifEnabled": true
 }

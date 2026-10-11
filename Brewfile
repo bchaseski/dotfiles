@@ -56,5 +56,6 @@ cask "mongodb-compass"    # MongoDB GUI
 cask "snagit"             # screen capture
 cask "logi-options+"      # Logitech peripherals
 cask "caffeine"           # prevent sleep
+# cask "jetbrains-toolbox"  # JetBrains IDEs toolbox (IntelliJ, PyCharm, etc.)
 
 # claude-code is installed via native installer in install.sh (supports auto-updates)
