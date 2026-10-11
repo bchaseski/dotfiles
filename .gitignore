@@ -12,3 +12,5 @@
 ssh/id_*
 ssh/*.pub
 .claude/settings.local.json
+claude/.claude/skills
+zsh/.zshrc.bak.1784078267
