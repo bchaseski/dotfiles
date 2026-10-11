@@ -18,6 +18,8 @@
         "titleBar.activeForeground": "#e7e7e7",
         "titleBar.inactiveBackground": "#6a040f99",
         "titleBar.inactiveForeground": "#e7e7e799",
+        "statusBar.border": "#6a040f",
+        "titleBar.border": "#6a040f",
         "activityBar.activeBorder": "#e7e7e7",
         "activityBarTop.activeBackground": "#9b0616",
         "activityBarTop.activeBorder": "#e7e7e7",

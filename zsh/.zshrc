@@ -1,7 +1,7 @@
 # ---- Shared config (aliases, functions, env vars) ----
 if [[ ! -f "$HOME/.config/shell/shared.sh" ]]; then
   echo "Restowing shell config..."
-  (cd "$HOME/dev/dotfiles" && stow shell)
+  (cd "$HOME/dev/personal/dotfiles" && stow --target="$HOME" shell)
 fi
 source "$HOME/.config/shell/shared.sh"
 
@@ -27,6 +27,7 @@ command -v fnm >/dev/null && eval "$(fnm env --use-on-cd --shell zsh)"
 
 # ---- Aliases: zsh-specific ----
 alias reload="source ~/.zshrc"
+export PATH="/opt/homebrew/opt/libpq/bin:$PATH"
 
 # >>> grok installer >>>
 export PATH="$HOME/.grok/bin:$PATH"
