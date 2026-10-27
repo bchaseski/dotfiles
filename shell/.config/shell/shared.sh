@@ -18,12 +18,15 @@ alias la="ls -A"
 
 # ---- Navigation: project dirs ----
 # Each cd<x> jumps to a project. Paths come from env vars so machine-specific
-# locations stay out of the committed repo — set UI_DIR / MICROAPPS_DIR in
+# locations stay out of the committed repo — set the *_DIR vars in
 # ~/.config/shell/shared.local.sh (gitignored, sourced at the bottom), same
 # pattern as SSL_DIR. Without those vars set, the functions print a hint.
 cdui() { cd "${UI_DIR:?set UI_DIR in ~/.config/shell/shared.local.sh}" || return; }
 cdmi() { cd "${MICROAPPS_DIR:?set MICROAPPS_DIR in ~/.config/shell/shared.local.sh}" || return; }
 cdwb() { cd "${WORKBOOK_DIR:?set WORKBOOK_DIR in ~/.config/shell/shared.local.sh}" || return; }
+cdloom() { cd "${LOOMFORGE_DIR:?set LOOMFORGE_DIR in ~/.config/shell/shared.local.sh}" || return; }
+cdpf() { cd "${PULSEFORGE_DIR:?set PULSEFORGE_DIR in ~/.config/shell/shared.local.sh}" || return; }
+cdaf() { cd "${ACCESSFORGE_DIR:?set ACCESSFORGE_DIR in ~/.config/shell/shared.local.sh}" || return; }
 
 # ---- Aliases: Git ----
 alias gs="git status"

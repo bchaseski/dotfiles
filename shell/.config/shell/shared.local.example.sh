@@ -20,9 +20,13 @@ if [ -f "$HOME/.config/zscaler/ZscalerRootCA.crt" ]; then
   export CURL_CA_BUNDLE="$ZSCALER_CA_BUNDLE"
 fi
 
-# ---- Navigation: project dirs (used by cdui / cdmi in shared.sh) ----
+# ---- Navigation: project dirs (used by the cd<x> functions in shared.sh) ----
 export UI_DIR="$HOME/dev/gtm-one-app-ui"
 export MICROAPPS_DIR="$HOME/dev/microapps"
+export WORKBOOK_DIR="$HOME/dev/workbook"
+export LOOMFORGE_DIR="$HOME/dev/loomforge"
+export PULSEFORGE_DIR="$HOME/dev/pulseforge"
+export ACCESSFORGE_DIR="$HOME/dev/accessforge"
 
 # ---- Machine-specific env (moved out of ~/.zshrc during stow reconcile) ----
 export JAVA_HOME="/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home"
